@@ -283,66 +283,61 @@ def ycbcr2rgb(img):
 
 
 class ImageSplitter:
-    def __init__(self, seg_size=48, scale=4):
+    def __init__(self, seg_size=48, scale=2, pad_size=3):
         self.seg_size = seg_size
         self.scale = scale
-        self.n_channels = 0
+        self.pad_size = pad_size
         self.height = 0
         self.width = 0
 
-    def split(self, img):
-        if isinstance(img, np.ndarray) or isinstance(img, Image.Image):
-            img_lq = TF.to_tensor(img).unsqueeze(0)
-        elif isinstance(img, torch.Tensor):
-            img_lq = img
-        else:
-            raise ValueError('This parameter must be a ndarray/Image/Tensor')
-
-        _, _, h_old, w_old = img_lq.size()
-        h_pad = (h_old // self.seg_size + 1) * self.seg_size - h_old
-        w_pad = (w_old // self.seg_size + 1) * self.seg_size - w_old
-
-        img_lq = torch.cat([img_lq, torch.flip(img_lq, [2])], 2)[:, :, :h_old + h_pad, :]
-        img_lq = torch.cat([img_lq, torch.flip(img_lq, [3])], 3)[:, :, :, :w_old + w_pad]
-
-        _, c, h, w = img_lq.size()
-        self.n_channels = c
+    def split(self, pil_img):
+        img_tensor = TF.to_tensor(pil_img).unsqueeze(0)
+        _, _, h, w = img_tensor.size()
         self.height = h
         self.width = w
-        self.h_old = h_old
-        self.w_old = w_old
+
+        pad_h = (h // self.seg_size + 1) * self.seg_size - h
+        pad_w = (w // self.seg_size + 1) * self.seg_size - w
+
+         # make sure the image is divisible into regular patches
+        img_tensor = F.pad(img_tensor, (0, pad_w, 0, pad_h), 'reflect')
+
+        # add padding around the image to simplify computations
+        img_tensor = F.pad(img_tensor, (self.pad_size, self.pad_size, self.pad_size, self.pad_size), 'reflect')
+
+        _, _, h, w = img_tensor.size()
+        self.height_padded = h
+        self.width_padded = w
 
         patches = []
-        for i in range(0, h, self.seg_size):
-            for j in range(0, w, self.seg_size):
-                patch = img_lq[:, :,
-                    i:min(i+self.seg_size, h),
-                    j:min(j+self.seg_size, w)]
+        for i in range(self.pad_size, h-self.pad_size, self.seg_size):
+            for j in range(self.pad_size, w-self.pad_size, self.seg_size):
+                patch = img_tensor[:, :,
+                    (i-self.pad_size):min(i+self.pad_size+self.seg_size, h),
+                    (j-self.pad_size):min(j+self.pad_size+self.seg_size, w)]
                 patches.append(patch)
 
         return patches
 
-    def merge(self, patches, pil_image=True):
-        seg_size = self.seg_size * self.scale
-        channel = self.n_channels
-        height = self.height * self.scale
-        width = self.width * self.scale
-        h_new = self.h_old * self.scale
-        w_new = self.w_old * self.scale
+    def merge(self, patches):
+        pad_size = self.scale * self.pad_size
+        seg_size = self.scale * self.seg_size
+        height = self.scale * self.height
+        width = self.scale * self.width
+        height_padded = self.scale * self.height_padded
+        width_padded = self.scale * self.width_padded
 
-        out = torch.zeros((1, channel, height, width))
+        out = torch.zeros((1, 3, height_padded, width_padded))
         patch_tensors = copy.copy(patches)
 
-        for i in range(0, height, seg_size):
-            for j in range(0, width, seg_size):
+        for i in range(pad_size, height_padded-pad_size, seg_size):
+            for j in range(pad_size, width_padded-pad_size, seg_size):
                 patch = patch_tensors.pop(0)
+                patch = patch[:, :, pad_size:-pad_size, pad_size:-pad_size]
 
                 _, _, h, w = patch.size()
                 out[:, :, i:i+h, j:j+w] = patch
 
-        out = out[..., :h_new, :w_new]
+        out = out[:, :, pad_size:height+pad_size, pad_size:width+pad_size]
 
-        if pil_image:
-            return TF.to_pil_image(out.squeeze().clamp(0,1))
-        else:
-            return out
+        return TF.to_pil_image(out.clamp(0,1).squeeze(0))
