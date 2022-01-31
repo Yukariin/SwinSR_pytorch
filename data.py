@@ -10,8 +10,6 @@ import torch.utils.data as data
 from torchvision.transforms import RandomCrop, Resize
 from torchvision.transforms import functional as TF
 
-import utils as util
-
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP', '.tif']
 
