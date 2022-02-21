@@ -6,6 +6,7 @@ import sqlite3
 
 import numpy as np
 from PIL import Image
+import torch
 import torch.utils.data as data
 from torchvision.transforms import RandomCrop, Resize
 from torchvision.transforms import functional as TF
@@ -69,18 +70,19 @@ class DatasetFromFolder(data.Dataset):
             interpolation = self.interpolation
         lr = hr.resize((self.patch_size,self.patch_size), interpolation)
 
-        if self.rotate and np.random.rand() < 0.5:
-            rv = np.random.randint(1, 4)
-            lr = TF.rotate(lr, 90 * rv)
-            hr = TF.rotate(hr, 90 * rv)
-        if self.hflip and np.random.rand() < 0.5:
-            lr = TF.hflip(lr)
-            hr = TF.hflip(hr)
-        if self.vflip and np.random.rand() < 0.5:
-            lr = TF.vflip(lr)
-            hr = TF.vflip(hr)
+        lr, hr = TF.to_tensor(lr), TF.to_tensor(hr)
 
-        return TF.to_tensor(lr), TF.to_tensor(hr)
+        if self.hflip and random.random() < 0.5:
+            lr = torch.flip(lr, [2])
+            hr = torch.flip(hr, [2])
+        if self.vflip and random.random() < 0.5:
+            lr = torch.flip(lr, [1])
+            hr = torch.flip(hr, [1])
+        if self.rotate and random.random() < 0.5:
+            lr = torch.transpose(lr, 1, 2)
+            hr = torch.transpose(hr, 1, 2)
+
+        return lr, hr
 
 
 class SQLDataset(data.Dataset):
@@ -116,18 +118,19 @@ class SQLDataset(data.Dataset):
         lr = Image.open(io.BytesIO(lr)).convert('RGB')
         hr = Image.open(io.BytesIO(hr)).convert('RGB')
 
-        if self.rotate and np.random.rand() < 0.5:
-            rv = np.random.randint(1, 4)
-            lr = TF.rotate(lr, 90 * rv)
-            hr = TF.rotate(hr, 90 * rv)
-        if self.hflip and np.random.rand() < 0.5:
-            lr = TF.hflip(lr)
-            hr = TF.hflip(hr)
-        if self.vflip and np.random.rand() < 0.5:
-            lr = TF.vflip(lr)
-            hr = TF.vflip(hr)
+        lr, hr = TF.to_tensor(lr), TF.to_tensor(hr)
 
-        return TF.to_tensor(lr), TF.to_tensor(hr)
+        if self.hflip and random.random() < 0.5:
+            lr = torch.flip(lr, [2])
+            hr = torch.flip(hr, [2])
+        if self.vflip and random.random() < 0.5:
+            lr = torch.flip(lr, [1])
+            hr = torch.flip(hr, [1])
+        if self.rotate and random.random() < 0.5:
+            lr = torch.transpose(lr, 1, 2)
+            hr = torch.transpose(hr, 1, 2)
+
+        return lr, hr
 
 
 class InfiniteSampler(data.sampler.Sampler):
