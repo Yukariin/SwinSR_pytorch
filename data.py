@@ -43,7 +43,7 @@ class DatasetFromList(data.Dataset):
 
 class DatasetFromFolder(data.Dataset):
     def __init__(self, image_dir, patch_size=48, scale_factor=2, interpolation=None,
-                 rotate=True, hflip=True, vflip=False):
+                 hflip=True, vflip=True, rotate=True):
         super().__init__()
 
         self.samples = [join(image_dir, x) for x in sorted(listdir(image_dir)) if is_image_file(x)]
@@ -86,7 +86,8 @@ class DatasetFromFolder(data.Dataset):
 
 
 class SQLDataset(data.Dataset):
-    def __init__(self, db_file, db_table='images', lr_col='lr_img', hr_col='hr_img', rotate=True, hflip=True, vflip=False):
+    def __init__(self, db_file, db_table='images', lr_col='lr_img', hr_col='hr_img',
+                 hflip=True, vflip=True, rotate=True):
         super().__init__()
 
         self.db_file = db_file
