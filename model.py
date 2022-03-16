@@ -2,6 +2,7 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
@@ -643,12 +644,13 @@ class SwinIR(nn.Module):
         self.img_range = img_range
         if in_chans == 3:
             #rgb_mean = (0.4488, 0.4371, 0.4040)
-            rgb_mean = (0.7115, 0.6168, 0.6177)
+            rgb_mean = (0.7173, 0.6245, 0.6254)
             self.mean = torch.Tensor(rgb_mean).view(1, 3, 1, 1)
         else:
             self.mean = torch.zeros(1, 1, 1, 1)
         self.upscale = upscale
         self.upsampler = upsampler
+        self.window_size = window_size
 
         #####################################################################################################
         ################################### 1, shallow feature extraction ###################################
@@ -766,6 +768,13 @@ class SwinIR(nn.Module):
     def no_weight_decay_keywords(self):
         return {'relative_position_bias_table'}
 
+    def check_image_size(self, x):
+        _, _, h, w = x.size()
+        mod_pad_h = (self.window_size - h % self.window_size) % self.window_size
+        mod_pad_w = (self.window_size - w % self.window_size) % self.window_size
+        x = F.pad(x, (0, mod_pad_w, 0, mod_pad_h), 'reflect')
+        return x
+
     def forward_features(self, x):
         x_size = (x.shape[2], x.shape[3])
         x = self.patch_embed(x)
@@ -782,6 +791,9 @@ class SwinIR(nn.Module):
         return x
 
     def forward(self, x):
+        H, W = x.shape[2:]
+        x = self.check_image_size(x)
+
         self.mean = self.mean.type_as(x)
         x = (x - self.mean) * self.img_range
 
@@ -812,7 +824,7 @@ class SwinIR(nn.Module):
 
         x = x / self.img_range + self.mean
 
-        return x
+        return x[:, :, :H*self.upscale, :W*self.upscale]
 
     def flops(self):
         flops = 0

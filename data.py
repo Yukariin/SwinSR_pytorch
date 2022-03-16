@@ -49,9 +49,9 @@ class DatasetFromFolder(data.Dataset):
         self.samples = [join(image_dir, x) for x in sorted(listdir(image_dir)) if is_image_file(x)]
         self.cropper = RandomCrop(patch_size * scale_factor)
         self.resizer = Resize(patch_size, interpolation)
-        self.rotate = rotate
         self.hflip = hflip
         self.vflip = vflip
+        self.rotate = rotate
         self.interpolation = interpolation
         self.patch_size = patch_size
 
@@ -94,9 +94,9 @@ class SQLDataset(data.Dataset):
         self.db_table = db_table
         self.lr_col = lr_col
         self.hr_col = hr_col
-        self.rotate = rotate
         self.hflip = hflip
         self.vflip = vflip
+        self.rotate = rotate
         self.total_images = self.get_num_rows()
 
     def get_num_rows(self):
