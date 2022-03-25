@@ -634,7 +634,9 @@ class SwinIR(nn.Module):
                  window_size=7, mlp_ratio=4., qkv_bias=True, qk_scale=None,
                  drop_rate=0., attn_drop_rate=0., drop_path_rate=0.1,
                  norm_layer=nn.LayerNorm, ape=False, patch_norm=True,
-                 use_checkpoint=False, upscale=2, img_range=1., upsampler='', resi_connection='1conv',
+                 use_checkpoint=False, upscale=2,
+                 img_range=1., rgb_mean=(0.4488, 0.4371, 0.4040),
+                 upsampler='', resi_connection='1conv',
                  **kwargs):
         super().__init__()
 
@@ -643,8 +645,6 @@ class SwinIR(nn.Module):
         num_feat = 64
         self.img_range = img_range
         if in_chans == 3:
-            #rgb_mean = (0.4488, 0.4371, 0.4040)
-            rgb_mean = (0.7173, 0.6245, 0.6254)
             self.mean = torch.Tensor(rgb_mean).view(1, 3, 1, 1)
         else:
             self.mean = torch.zeros(1, 1, 1, 1)
